@@ -3,25 +3,28 @@
 <head>
   <title>匿名聊天室</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Materialize CSS -->
   <link href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css" rel="stylesheet">
   <style>
     body { margin: 0; padding-bottom: 3rem; font-family: 'Roboto', sans-serif; }
     #form { background: rgba(0, 0, 0, 0.15); padding: 0.25rem; position: fixed; bottom: 0; left: 0; right: 0; display: flex; align-items: center; height: 4rem; box-sizing: border-box; backdrop-filter: blur(10px); }
     #input { flex-grow: 1; margin: 0.5rem; }
-    #messages { list-style-type: none; margin: 0; padding: 0; }
+    #messages { list-style-type: none; margin: 0; padding: 0; margin-bottom: 4rem; }
     #messages > li { padding: 0.5rem 1rem; }
     #messages > li:nth-child(odd) { background: #efefef; }
     #nicknameForm { display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; }
-    #welcome { margin-bottom: 1rem; }
+    #nicknameForm input, #nicknameForm button { margin-bottom: 1rem; }
   </style>
 </head>
 <body>
   <div id="nicknameForm" class="container">
-    <h5 id="welcome" class="center-align">欢迎来自...的用户</h5>
+    <h5 class="center-align">欢迎使用聊天室</h5>
     <div class="input-field col s12 m6">
       <input id="nicknameInput" type="text" class="validate">
       <label for="nicknameInput">请输入昵称</label>
+    </div>
+    <div class="input-field col s12 m6">
+      <input id="phraseKeyInput" type="password" class="validate">
+      <label for="phraseKeyInput">请输入密钥</label>
     </div>
     <button id="enterChat" class="btn waves-effect waves-light" type="submit" name="action">进入聊天室</button>
   </div>
@@ -33,10 +36,10 @@
     </div>
     <button class="btn waves-effect waves-light col s2" type="submit" name="action">发送</button>
   </form>
-  <!-- Materialize JavaScript -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
-  <!-- Socket.io -->
   <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
   <script>
     const socket = io();
     const form = document.getElementById('form');
@@ -45,16 +48,35 @@
     const nicknameForm = document.getElementById('nicknameForm');
     const nicknameInput = document.getElementById('nicknameInput');
     const enterChat = document.getElementById('enterChat');
-    const welcome = document.getElementById('welcome');
+    const phraseKeyInput = document.getElementById('phraseKeyInput');
     let nickname = '';
+    let phraseKey = '';
+
+    function encryptMessage(message, key) {
+      return CryptoJS.AES.encrypt(message, key).toString();
+    }
+
+    function decryptMessage(encryptedMsg, key) {
+      try {
+        const bytes = CryptoJS.AES.decrypt(encryptedMsg, key);
+        return bytes.toString(CryptoJS.enc.Utf8);
+      } catch (error) {
+        console.error('Error decrypting message:', error);
+        return '解密错误：无效的密钥';
+      }
+    }
 
     socket.on('location info', (location) => {
-      welcome.textContent = `欢迎来自${location}的用户`;
+      // 这里可以展示用户的位置
     });
 
     enterChat.addEventListener('click', () => {
       nickname = nicknameInput.value.trim();
-      if (nickname) {
+      phraseKey = phraseKeyInput.value.trim();
+
+      if (nickname && phraseKey) {
+        socket.emit('set phrase key', phraseKey); // 发送密钥到服务器
+
         nicknameForm.style.display = 'none';
         messages.style.display = 'block';
         form.style.display = 'flex';
@@ -65,7 +87,8 @@
       e.preventDefault();
       if (input.value) {
         const message = `${nickname}: ${input.value}`;
-        socket.emit('chat message', message);
+        const encryptedMessage = encryptMessage(message, phraseKey);
+        socket.emit('chat message', { msg: encryptedMessage, key: phraseKey });
         input.value = '';
       }
     });
@@ -73,7 +96,7 @@
     socket.on('chat message', (msg) => {
       const item = document.createElement('li');
       item.className = 'collection-item';
-      item.textContent = `${msg.timestamp} - ${msg.msg}`;
+      item.textContent = `${msg.timestamp} - ${decryptMessage(msg.msg, phraseKey)}`;
       messages.appendChild(item);
       window.scrollTo(0, document.body.scrollHeight);
     });
@@ -82,7 +105,7 @@
       history.forEach((msg) => {
         const item = document.createElement('li');
         item.className = 'collection-item';
-        item.textContent = `${msg.timestamp} - ${msg.msg}`;
+        item.textContent = `${msg.timestamp} - ${decryptMessage(msg.msg, phraseKey)}`;
         messages.appendChild(item);
       });
       window.scrollTo(0, document.body.scrollHeight);
