@@ -4,8 +4,8 @@ const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const moment = require('moment');
+const CryptoJS = require('crypto-js');
 
-// 用于存储聊天记录
 let chatHistory = [];
 
 app.use(express.static(__dirname + '/public'));
@@ -16,8 +16,7 @@ app.get('/', (req, res) => {
 
 io.on('connection', async (socket) => {
   console.log('A user connected');
-  
-  // 获取用户IP地址
+
   const ip = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address || '';
   let location = '未知地区';
 
@@ -28,29 +27,39 @@ io.on('connection', async (socket) => {
     console.error('Error fetching IP info:', error);
   }
 
-  // 发送地理位置信息给新用户
   socket.emit('location info', location);
 
-  // 发送聊天记录给新用户
-  socket.emit('chat history', chatHistory);
+  socket.on('set phrase key', (key) => {
+    socket.phraseKey = key; // Store the client's phrase key
+  });
 
-  socket.on('chat message', (msg) => {
+  socket.on('chat message', (data) => {
     const timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
-    const messageWithTimestamp = { msg, timestamp };
-    
-    // 保存消息到历史记录
-    chatHistory.push(messageWithTimestamp);
+    const encryptedMsg = data.msg;
+    const phraseKey = data.key;
 
-    // 保留24小时内的消息
-    chatHistory = chatHistory.filter(message => moment(message.timestamp).isAfter(moment().subtract(24, 'hours')));
+    try {
+      const decryptedMsg = decryptMessage(encryptedMsg, phraseKey);
+      const messageWithTimestamp = { msg: encryptedMsg, timestamp, key: phraseKey };
 
-    io.emit('chat message', messageWithTimestamp);
+      chatHistory.push(messageWithTimestamp);
+      chatHistory = chatHistory.filter(message => moment(message.timestamp).isAfter(moment().subtract(24, 'hours')));
+
+      io.emit('chat message', messageWithTimestamp);
+    } catch (error) {
+      console.error('Error decrypting message:', error);
+    }
   });
 
   socket.on('disconnect', () => {
     console.log('User disconnected');
   });
 });
+
+function decryptMessage(encryptedMsg, phraseKey) {
+  const bytes = CryptoJS.AES.decrypt(encryptedMsg, phraseKey);
+  return bytes.toString(CryptoJS.enc.Utf8);
+}
 
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => {
