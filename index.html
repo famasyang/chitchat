@@ -1,42 +1,181 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh">
 <head>
+  <meta charset="UTF-8">
   <title>匿名聊天室</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
-    body { margin: 0; padding-bottom: 3rem; font-family: 'Roboto', sans-serif; }
-    #form { background: rgba(0, 0, 0, 0.15); padding: 0.25rem; position: fixed; bottom: 0; left: 0; right: 0; display: flex; align-items: center; height: 4rem; box-sizing: border-box; backdrop-filter: blur(10px); }
-    #input { flex-grow: 1; margin: 0.5rem; }
-    #messages { list-style-type: none; margin: 0; padding: 0; margin-bottom: 4rem; }
-    #messages > li { padding: 0.5rem 1rem; }
-    #messages > li:nth-child(odd) { background: #efefef; }
-    #nicknameForm { display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; }
-    #nicknameForm input, #nicknameForm button { margin-bottom: 1rem; }
+    :root {
+      --md-sys-color-primary: #6750A4;
+      --md-sys-color-on-primary: #FFFFFF;
+      --md-sys-color-primary-container: #EADDFF;
+      --md-sys-color-on-primary-container: #21005D;
+      --md-sys-color-secondary: #625B71;
+      --md-sys-color-on-secondary: #FFFFFF;
+      --md-sys-color-secondary-container: #E8DEF8;
+      --md-sys-color-on-secondary-container: #1D192B;
+      --md-sys-color-surface: #FEF7FF;
+      --md-sys-color-on-surface: #1D1B20;
+      --md-sys-color-surface-variant: #E7E0EC;
+      --md-sys-color-on-surface-variant: #49454F;
+      --md-sys-color-outline: #79747E;
+    }
+    body {
+      font-family: 'Roboto', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: var(--md-sys-color-surface);
+      color: var(--md-sys-color-on-surface);
+      display: flex;
+      height: 100vh;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      flex-grow: 1;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    .card {
+      background-color: var(--md-sys-color-surface-variant);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+    }
+    .input-field {
+      margin-bottom: 16px;
+    }
+    .input-field input {
+      width: calc(100% - 24px);
+      padding: 12px;
+      border: 1px solid var(--md-sys-color-outline);
+      border-radius: 4px;
+      font-size: 16px;
+      background-color: var(--md-sys-color-surface);
+      color: var(--md-sys-color-on-surface);
+    }
+    .btn {
+      background-color: var(--md-sys-color-primary);
+      color: var(--md-sys-color-on-primary);
+      border: none;
+      padding: 12px 24px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 500;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    .btn:hover {
+      background-color: var(--md-sys-color-primary-container);
+      color: var(--md-sys-color-on-primary-container);
+    }
+    .chat-container {
+      display: flex;
+      flex-grow: 1;
+      overflow: hidden;
+    }
+    .user-list {
+      width: 200px;
+      padding: 16px;
+      background-color: var(--md-sys-color-surface-variant);
+      border-right: 1px solid var(--md-sys-color-outline);
+      overflow-y: auto;
+    }
+    #messages {
+      list-style-type: none;
+      padding: 0;
+      margin: 0;
+      max-height: calc(100vh - 160px);
+      overflow-y: auto;
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    #messages li {
+      padding: 12px;
+      display: flex;
+      justify-content: center;
+    }
+    .message-content {
+      max-width: 80%;
+      padding: 10px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      display: inline-block;
+      word-wrap: break-word;
+    }
+    .message-left {
+      background-color: var(--md-sys-color-primary-container);
+      color: var(--md-sys-color-on-primary-container);
+      align-self: flex-start;
+    }
+    .message-right {
+      background-color: var(--md-sys-color-secondary-container);
+      color: var(--md-sys-color-on-secondary-container);
+      align-self: flex-end;
+    }
+    #form {
+      display: flex;
+      padding: 16px;
+      background-color: var(--md-sys-color-surface-variant);
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      box-sizing: border-box;
+    }
+    #input {
+      flex-grow: 1;
+      margin-right: 8px;
+    }
+    #imageUrlInput {
+      flex-grow: 1;
+      margin-right: 8px;
+      display: none;
+    }
+    #locationInfo {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      background-color: var(--md-sys-color-secondary-container);
+      color: var(--md-sys-color-on-secondary-container);
+      padding: 8px 16px;
+      border-radius: 16px;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
   <div id="nicknameForm" class="container">
-    <h5 class="center-align">欢迎使用聊天室</h5>
-    <div class="input-field col s12 m6">
-      <input id="nicknameInput" type="text" class="validate">
-      <label for="nicknameInput">请输入昵称</label>
+    <div class="card">
+      <h5>欢迎使用聊天室</h5>
+      <div class="input-field">
+        <input id="nicknameInput" type="text" placeholder="请输入昵称">
+      </div>
+      <div class="input-field">
+        <input id="phraseKeyInput" type="password" placeholder="请输入密钥">
+      </div>
+      <button id="enterChat" class="btn">进入聊天室</button>
     </div>
-    <div class="input-field col s12 m6">
-      <input id="phraseKeyInput" type="password" class="validate">
-      <label for="phraseKeyInput">请输入密钥</label>
-    </div>
-    <button id="enterChat" class="btn waves-effect waves-light" type="submit" name="action">进入聊天室</button>
   </div>
-  <ul id="messages" class="collection" style="display: none;"></ul>
-  <form id="form" class="row" action="" style="display: none;">
-    <div class="input-field col s10">
-      <input id="input" autocomplete="off" type="text" class="validate">
-      <label for="input">输入消息</label>
+  <div class="chat-container" style="display: none;">
+    <div class="user-list" id="userList"></div>
+    <div class="container">
+      <ul id="messages"></ul>
+      <form id="form" action="">
+        <input id="input" type="text" autocomplete="off" placeholder="输入消息">
+        <input id="imageUrlInput" type="text" autocomplete="off" placeholder="输入图片URL（可选）">
+        <button class="btn">发送</button>
+        <button type="button" id="addImageBtn" class="btn">添加图片</button>
+      </form>
     </div>
-    <button class="btn waves-effect waves-light col s2" type="submit" name="action">发送</button>
-  </form>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+  </div>
+  <div id="locationInfo" style="display: none;"></div>
+
   <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
@@ -44,11 +183,16 @@
     const socket = io();
     const form = document.getElementById('form');
     const input = document.getElementById('input');
+    const imageUrlInput = document.getElementById('imageUrlInput');
+    const addImageBtn = document.getElementById('addImageBtn');
     const messages = document.getElementById('messages');
     const nicknameForm = document.getElementById('nicknameForm');
     const nicknameInput = document.getElementById('nicknameInput');
     const enterChat = document.getElementById('enterChat');
     const phraseKeyInput = document.getElementById('phraseKeyInput');
+    const locationInfo = document.getElementById('locationInfo');
+    const chatContainer = document.querySelector('.chat-container');
+    const userList = document.getElementById('userList');
     let nickname = '';
     let phraseKey = '';
 
@@ -67,49 +211,97 @@
     }
 
     socket.on('location info', (location) => {
-      // 这里可以展示用户的位置
+      locationInfo.textContent = `当前位置：${location}`;
+      locationInfo.style.display = 'block';
     });
+
+    // 尝试从localStorage中读取nickname和phraseKey
+    if (localStorage.getItem('nickname') && localStorage.getItem('phraseKey')) {
+      nickname = localStorage.getItem('nickname');
+      phraseKey = localStorage.getItem('phraseKey');
+      nicknameForm.style.display = 'none';
+      chatContainer.style.display = 'flex';
+      socket.emit('user joined', nickname);
+      setInterval(() => {
+        socket.emit('user report', nickname);
+      }, 60000); // 每分钟上报一次ID
+    }
 
     enterChat.addEventListener('click', () => {
       nickname = nicknameInput.value.trim();
       phraseKey = phraseKeyInput.value.trim();
 
       if (nickname && phraseKey) {
-        socket.emit('set phrase key', phraseKey); // 发送密钥到服务器
-
+        localStorage.setItem('nickname', nickname);
+        localStorage.setItem('phraseKey', phraseKey);
         nicknameForm.style.display = 'none';
-        messages.style.display = 'block';
-        form.style.display = 'flex';
+        chatContainer.style.display = 'flex';
+        socket.emit('user joined', nickname);
+        setInterval(() => {
+          socket.emit('user report', nickname);
+        }, 60000); // 每分钟上报一次ID
       }
+    });
+
+    addImageBtn.addEventListener('click', () => {
+      imageUrlInput.style.display = imageUrlInput.style.display === 'none' ? 'block' : 'none';
     });
 
     form.addEventListener('submit', (e) => {
       e.preventDefault();
-      if (input.value) {
-        const message = `${nickname}: ${input.value}`;
+      if (input.value || imageUrlInput.value) {
+        let message = `${nickname}: ${input.value}`;
+        if (imageUrlInput.value) {
+          message += ` [img]${imageUrlInput.value}[/img]`;
+        }
         const encryptedMessage = encryptMessage(message, phraseKey);
         socket.emit('chat message', { msg: encryptedMessage, key: phraseKey });
         input.value = '';
+        imageUrlInput.value = '';
+        imageUrlInput.style.display = 'none';
       }
     });
 
     socket.on('chat message', (msg) => {
-      const item = document.createElement('li');
-      item.className = 'collection-item';
-      item.textContent = `${msg.timestamp} - ${decryptMessage(msg.msg, phraseKey)}`;
-      messages.appendChild(item);
-      window.scrollTo(0, document.body.scrollHeight);
+      appendMessage(msg);
     });
 
     socket.on('chat history', (history) => {
-      history.forEach((msg) => {
-        const item = document.createElement('li');
-        item.className = 'collection-item';
-        item.textContent = `${msg.timestamp} - ${decryptMessage(msg.msg, phraseKey)}`;
-        messages.appendChild(item);
-      });
+      history.forEach(appendMessage);
       window.scrollTo(0, document.body.scrollHeight);
     });
+
+    socket.on('update user list', (users) => {
+      userList.innerHTML = '';
+      users.forEach(user => {
+        const userItem = document.createElement('div');
+        userItem.textContent = `${user.nickname} (${user.location})`;
+        userList.appendChild(userItem);
+      });
+    });
+
+    function appendMessage(msg) {
+      const item = document.createElement('li');
+      const decryptedMessage = decryptMessage(msg.msg, phraseKey);
+      const messageContent = document.createElement('div');
+      messageContent.classList.add('message-content');
+      if (decryptedMessage.startsWith(`${nickname}:`)) {
+        messageContent.classList.add('message-right');
+      } else {
+        messageContent.classList.add('message-left');
+      }
+      if (decryptedMessage.includes('[img]') && decryptedMessage.includes('[/img]')) {
+        const parts = decryptedMessage.split('[img]');
+        const textPart = parts[0];
+        const imageUrl = parts[1].split('[/img]')[0];
+        messageContent.innerHTML = `${msg.timestamp} - ${textPart}<br><img src="${imageUrl}" alt="Image" style="max-width: 100%;">`;
+      } else {
+        messageContent.textContent = `${msg.timestamp} - ${decryptedMessage}`;
+      }
+      item.appendChild(messageContent);
+      messages.appendChild(item);
+      messages.scrollTop = messages.scrollHeight;
+    }
   </script>
 </body>
 </html>
