@@ -4,10 +4,14 @@ const socketIO = require('socket.io');
 const axios = require('axios');
 const moment = require('moment');
 const redis = require('redis');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const httpServer = http.createServer(app);
 const io = socketIO(httpServer);
+const upload = multer({ dest: 'uploads/' });
 
 let client;
 let onlineUsers = {};
@@ -32,9 +36,34 @@ async function connectRedis() {
 }
 
 app.use(express.static(__dirname + '/public'));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/public/index.html');
+});
+
+app.post('/upload', upload.single('image'), (req, res) => {
+  if (req.file) {
+    res.json({ imageUrl: `/uploads/${req.file.filename}` });
+  } else {
+    res.status(400).send('No file uploaded');
+  }
+});
+
+app.get('/clear-chat-history', async (req, res) => {
+  if (client && client.isReady) {
+    try {
+      await client.del('chatHistory');
+      console.log('Chat history cleared');
+      res.send('Chat history cleared');
+    } catch (error) {
+      console.error('Error clearing chat history:', error);
+      res.status(500).send('Error clearing chat history');
+    }
+  } else {
+    console.error('Redis client is not ready');
+    res.status(500).send('Redis client is not ready');
+  }
 });
 
 io.on('connection', async (socket) => {
@@ -112,3 +141,46 @@ async function startServer() {
 }
 
 startServer();
+
+// 每12小时删除一次聊天记录
+setInterval(async () => {
+  if (client && client.isReady) {
+    try {
+      await client.del('chatHistory');
+      console.log('Chat history cleared');
+    } catch (error) {
+      console.error('Error clearing chat history:', error);
+    }
+  }
+}, 12 * 60 * 60 * 1000); // 12小时的毫秒数
+
+// 删除上传目录中的旧文件
+setInterval(() => {
+  const uploadDir = path.join(__dirname, 'uploads');
+  fs.readdir(uploadDir, (err, files) => {
+    if (err) {
+      console.error('Error reading uploads directory:', err);
+      return;
+    }
+    files.forEach(file => {
+      const filePath = path.join(uploadDir, file);
+      fs.stat(filePath, (err, stats) => {
+        if (err) {
+          console.error('Error getting file stats:', err);
+          return;
+        }
+        const now = Date.now();
+        const fileAge = now - stats.mtimeMs;
+        if (fileAge > 12 * 60 * 60 * 1000) { // 文件超过12小时
+          fs.unlink(filePath, (err) => {
+            if (err) {
+              console.error('Error deleting file:', err);
+            } else {
+              console.log(`Deleted file: ${file}`);
+            }
+          });
+        }
+      });
+    });
+  });
+}, 12 * 60 * 60 * 1000); // 12小时的毫秒数
