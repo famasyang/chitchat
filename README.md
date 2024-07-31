@@ -8,6 +8,7 @@ npm init -y
 npm install express socket.io moment axios
 
 ### 文件树构成
+```
 project-root/
 ├── public/
 │   ├── index.html
@@ -16,3 +17,4 @@ project-root/
 ├── package.json
 ├── package-lock.json
 └── node_modules/
+```
