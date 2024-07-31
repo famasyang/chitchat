@@ -5,6 +5,7 @@
   <title>匿名聊天室</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
   <style>
     :root {
       --md-sys-color-primary: #6750A4;
@@ -20,6 +21,7 @@
       --md-sys-color-surface-variant: #E7E0EC;
       --md-sys-color-on-surface-variant: #49454F;
       --md-sys-color-outline: #79747E;
+      --md-sys-color-time: #000000;
     }
     body {
       font-family: 'Roboto', sans-serif;
@@ -34,7 +36,7 @@
       display: flex;
       flex-direction: column;
       flex-grow: 1;
-      max-width: 600px;
+      max-width: 100%;
       margin: 0 auto;
       padding: 16px;
     }
@@ -98,28 +100,46 @@
     #messages li {
       padding: 12px;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
+      align-items: flex-start;
     }
     .message-content {
-      max-width: 80%;
+      max-width: 60%;
       padding: 10px;
       border-radius: 10px;
       margin-bottom: 10px;
-      display: inline-block;
       word-wrap: break-word;
-    }
-    .message-left {
-      background-color: var(--md-sys-color-primary-container);
-      color: var(--md-sys-color-on-primary-container);
-      align-self: flex-start;
+      background-color: var(--md-sys-color-surface-variant);
+      color: var(--md-sys-color-on-surface);
+      position: relative;
+      display: flex;
+      flex-direction: column;
     }
     .message-right {
-      background-color: var(--md-sys-color-secondary-container);
-      color: var(--md-sys-color-on-secondary-container);
       align-self: flex-end;
+      background-color: var(--md-sys-color-primary);
+      color: var(--md-sys-color-on-primary);
+    }
+    .message-left {
+      align-self: flex-start;
+      background-color: var(--md-sys-color-secondary);
+      color: var(--md-sys-color-on-secondary);
+    }
+    .message-id {
+      font-size: 0.8em;
+      margin-bottom: 5px;
+    }
+    .message-time {
+      font-size: 0.8em;
+      position: absolute;
+      bottom: -1.5em;
+      right: 0;
+      white-space: nowrap;
+      color: var(--md-sys-color-time);
     }
     #form {
       display: flex;
+      flex-direction: column;
       padding: 16px;
       background-color: var(--md-sys-color-surface-variant);
       position: fixed;
@@ -128,14 +148,25 @@
       right: 0;
       box-sizing: border-box;
     }
-    #input {
+    .input-row {
+      display: flex;
+      width: 100%;
+      margin-bottom: 8px;
+    }
+    #input, #imageUpload {
       flex-grow: 1;
       margin-right: 8px;
     }
-    #imageUrlInput {
-      flex-grow: 1;
-      margin-right: 8px;
+    #imageUpload {
       display: none;
+    }
+    .icon-btn {
+      background: none;
+      border: none;
+      color: var(--md-sys-color-primary);
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0 8px;
     }
     #locationInfo {
       position: fixed;
@@ -146,6 +177,41 @@
       padding: 8px 16px;
       border-radius: 16px;
       font-size: 14px;
+    }
+    #changeKeyBtn {
+      position: fixed;
+      top: 16px;
+      right: 200px;
+      background-color: var(--md-sys-color-primary);
+      color: var(--md-sys-color-on-primary);
+      padding: 8px 16px;
+      border-radius: 16px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .message-image {
+      max-width: 100%;
+      max-height: 200px;
+      margin-top: 10px;
+      border-radius: 5px;
+    }
+    @media (max-width: 600px) {
+      .user-list {
+        display: none;
+      }
+      .message-content {
+        max-width: 80%;
+      }
+      #form {
+        flex-wrap: wrap;
+      }
+      #input {
+        width: 100%;
+        margin-bottom: 8px;
+      }
+      #imageUpload {
+        width: 100%;
+      }
     }
   </style>
 </head>
@@ -167,14 +233,20 @@
     <div class="container">
       <ul id="messages"></ul>
       <form id="form" action="">
-        <input id="input" type="text" autocomplete="off" placeholder="输入消息">
-        <input id="imageUrlInput" type="text" autocomplete="off" placeholder="输入图片URL（可选）">
-        <button class="btn">发送</button>
-        <button type="button" id="addImageBtn" class="btn">添加图片</button>
+        <div class="input-row">
+          <input id="imageUpload" type="file" accept="image/*">
+          <button type="button" id="sendImageBtn" class="icon-btn"><i class="fas fa-paper-plane"></i></button>
+        </div>
+        <div class="input-row">
+          <input id="input" type="text" autocomplete="off" placeholder="输入消息">
+          <button type="submit" class="icon-btn"><i class="fas fa-paper-plane"></i></button>
+          <button type="button" id="addImageBtn" class="icon-btn"><i class="fas fa-image"></i></button>
+        </div>
       </form>
     </div>
   </div>
   <div id="locationInfo" style="display: none;"></div>
+  <button id="changeKeyBtn" class="btn" style="display: none;">更换密钥</button>
 
   <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
@@ -183,8 +255,9 @@
     const socket = io();
     const form = document.getElementById('form');
     const input = document.getElementById('input');
-    const imageUrlInput = document.getElementById('imageUrlInput');
+    const imageUpload = document.getElementById('imageUpload');
     const addImageBtn = document.getElementById('addImageBtn');
+    const sendImageBtn = document.getElementById('sendImageBtn');
     const messages = document.getElementById('messages');
     const nicknameForm = document.getElementById('nicknameForm');
     const nicknameInput = document.getElementById('nicknameInput');
@@ -193,6 +266,7 @@
     const locationInfo = document.getElementById('locationInfo');
     const chatContainer = document.querySelector('.chat-container');
     const userList = document.getElementById('userList');
+    const changeKeyBtn = document.getElementById('changeKeyBtn');
     let nickname = '';
     let phraseKey = '';
 
@@ -215,16 +289,16 @@
       locationInfo.style.display = 'block';
     });
 
-    // 尝试从localStorage中读取nickname和phraseKey
     if (localStorage.getItem('nickname') && localStorage.getItem('phraseKey')) {
       nickname = localStorage.getItem('nickname');
       phraseKey = localStorage.getItem('phraseKey');
       nicknameForm.style.display = 'none';
       chatContainer.style.display = 'flex';
+      changeKeyBtn.style.display = 'block';
       socket.emit('user joined', nickname);
       setInterval(() => {
         socket.emit('user report', nickname);
-      }, 60000); // 每分钟上报一次ID
+      }, 60000);
     }
 
     enterChat.addEventListener('click', () => {
@@ -236,31 +310,60 @@
         localStorage.setItem('phraseKey', phraseKey);
         nicknameForm.style.display = 'none';
         chatContainer.style.display = 'flex';
+        changeKeyBtn.style.display = 'block';
         socket.emit('user joined', nickname);
         setInterval(() => {
           socket.emit('user report', nickname);
-        }, 60000); // 每分钟上报一次ID
+        }, 60000);
+      }
+    });
+
+    changeKeyBtn.addEventListener('click', () => {
+      phraseKey = prompt('请输入新的密钥:');
+      if (phraseKey) {
+        localStorage.setItem('phraseKey', phraseKey);
+        alert('密钥已更新');
       }
     });
 
     addImageBtn.addEventListener('click', () => {
-      imageUrlInput.style.display = imageUrlInput.style.display === 'none' ? 'block' : 'none';
+      imageUpload.style.display = imageUpload.style.display === 'none' ? 'block' : 'none';
+      sendImageBtn.style.display = imageUpload.style.display;
+    });
+
+    sendImageBtn.addEventListener('click', () => {
+      if (imageUpload.files.length > 0) {
+        const file = imageUpload.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          sendMessage(e.target.result, true);
+        };
+        reader.readAsDataURL(file);
+      }
     });
 
     form.addEventListener('submit', (e) => {
       e.preventDefault();
-      if (input.value || imageUrlInput.value) {
-        let message = `${nickname}: ${input.value}`;
-        if (imageUrlInput.value) {
-          message += ` [img]${imageUrlInput.value}[/img]`;
-        }
+      sendMessage();
+    });
+
+    function sendMessage(content = '', isImage = false) {
+      let message = '';
+      if (isImage && content) {
+        message = `${nickname}: [img]${content}[/img]`;
+      } else if (input.value) {
+        message = `${nickname}: ${input.value}`;
+      }
+
+      if (message) {
         const encryptedMessage = encryptMessage(message, phraseKey);
         socket.emit('chat message', { msg: encryptedMessage, key: phraseKey });
         input.value = '';
-        imageUrlInput.value = '';
-        imageUrlInput.style.display = 'none';
+        imageUpload.value = '';
+        imageUpload.style.display = 'none';
+        sendImageBtn.style.display = 'none';
       }
-    });
+    }
 
     socket.on('chat message', (msg) => {
       appendMessage(msg);
@@ -285,19 +388,50 @@
       const decryptedMessage = decryptMessage(msg.msg, phraseKey);
       const messageContent = document.createElement('div');
       messageContent.classList.add('message-content');
-      if (decryptedMessage.startsWith(`${nickname}:`)) {
+
+      const isOwnMessage = decryptedMessage.startsWith(`${nickname}:`);
+      if (isOwnMessage) {
         messageContent.classList.add('message-right');
       } else {
         messageContent.classList.add('message-left');
       }
-      if (decryptedMessage.includes('[img]') && decryptedMessage.includes('[/img]')) {
-        const parts = decryptedMessage.split('[img]');
-        const textPart = parts[0];
-        const imageUrl = parts[1].split('[/img]')[0];
-        messageContent.innerHTML = `${msg.timestamp} - ${textPart}<br><img src="${imageUrl}" alt="Image" style="max-width: 100%;">`;
+
+      const messageId = document.createElement('div');
+      messageId.classList.add('message-id');
+      const nameAndMessage = decryptedMessage.split(': ');
+      messageId.textContent = nameAndMessage[0]; // 提取昵称
+
+      const messageText = document.createElement('div');
+      const contentText = nameAndMessage.slice(1).join(': '); // 提取消息内容
+
+      // 检查是否包含图片
+      const imgMatch = contentText.match(/\[img\](.*?)\[\/img\]/);
+      if (imgMatch) {
+        const imgUrl = imgMatch[1];
+        const img = document.createElement('img');
+        img.src = imgUrl;
+        img.alt = '聊天图片';
+        img.classList.add('message-image');
+        messageText.appendChild(img);
       } else {
-        messageContent.textContent = `${msg.timestamp} - ${decryptedMessage}`;
+        messageText.textContent = contentText;
       }
+
+      const messageTime = document.createElement('div');
+      messageTime.classList.add('message-time');
+      const timestamp = new Date(msg.timestamp);
+      messageTime.textContent = timestamp.toLocaleString('zh-CN', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+
+      messageContent.appendChild(messageId);
+      messageContent.appendChild(messageText);
+      messageContent.appendChild(messageTime);
+
       item.appendChild(messageContent);
       messages.appendChild(item);
       messages.scrollTop = messages.scrollHeight;
