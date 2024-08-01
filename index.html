@@ -30,7 +30,8 @@
       background-color: var(--md-sys-color-surface);
       color: var(--md-sys-color-on-surface);
       display: flex;
-      height: 100vh;
+      flex-direction: column;
+      min-height: 100vh;
     }
     .container {
       display: flex;
@@ -39,6 +40,8 @@
       max-width: 100%;
       margin: 0 auto;
       padding: 16px;
+      align-items: center;
+      justify-content: center;
     }
     .card {
       background-color: var(--md-sys-color-surface-variant);
@@ -195,6 +198,20 @@
       margin-top: 10px;
       border-radius: 5px;
     }
+    .title {
+      font-size: 24px;
+      font-weight: 500;
+      margin-bottom: 20px;
+      color: var(--md-sys-color-primary);
+    }
+    .github-link {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 24px;
+      color: var(--md-sys-color-primary);
+    }
     @media (max-width: 600px) {
       .user-list {
         display: none;
@@ -216,16 +233,19 @@
   </style>
 </head>
 <body>
-  <div id="nicknameForm" class="container">
-    <div class="card">
-      <h5>欢迎使用聊天室</h5>
-      <div class="input-field">
-        <input id="nicknameInput" type="text" placeholder="请输入昵称">
+  <div class="container">
+    <h1 class="title">匿名聊天室</h1>
+    <div id="nicknameForm">
+      <div class="card">
+        <h5>欢迎使用聊天室</h5>
+        <div class="input-field">
+          <input id="nicknameInput" type="text" placeholder="请输入昵称">
+        </div>
+        <div class="input-field">
+          <input id="phraseKeyInput" type="password" placeholder="请输入密钥">
+        </div>
+        <button id="enterChat" class="btn">进入聊天室</button>
       </div>
-      <div class="input-field">
-        <input id="phraseKeyInput" type="password" placeholder="请输入密钥">
-      </div>
-      <button id="enterChat" class="btn">进入聊天室</button>
     </div>
   </div>
   <div class="chat-container" style="display: none;">
@@ -247,6 +267,9 @@
   </div>
   <div id="locationInfo" style="display: none;"></div>
   <button id="changeKeyBtn" class="btn" style="display: none;">更换密钥</button>
+  <a href="https://github.com/famasyang/chitchat" target="_blank" class="github-link">
+    <i class="fab fa-github"></i>
+  </a>
 
   <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
@@ -353,9 +376,8 @@
         message = `${nickname}: [img]${content}[/img]`;
       } else if (input.value) {
         message = `${nickname}: ${input.value}`;
-      }
-
-      if (message) {
+      }        
+        if (message) {
         const encryptedMessage = encryptMessage(message, phraseKey);
         socket.emit('chat message', { msg: encryptedMessage, key: phraseKey });
         input.value = '';
