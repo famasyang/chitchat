@@ -106,7 +106,7 @@ function decryptMessage(encryptedMsg, key) {
   }
 }
 
-function sendRandomSonnetLine() {
+async function sendRandomSonnetLine() {
   const randomLine = sonnets[Math.floor(Math.random() * sonnets.length)];
   const message = {
     id: Date.now().toString(),
@@ -114,7 +114,17 @@ function sendRandomSonnetLine() {
     timestamp: moment().format('YYYY-MM-DD HH:mm:ss'),
     key: "sonnet_key"
   };
-  io.emit('chat message', message);
+  
+  if (client && client.isReady) {
+    try {
+      await client.lPush('chatHistory', JSON.stringify(message));
+      io.emit('chat message', message);
+    } catch (error) {
+      console.error('Error saving bot message to Redis:', error);
+    }
+  } else {
+    console.error('Redis client is not ready');
+  }
 }
 
 io.on('connection', async (socket) => {
@@ -168,10 +178,14 @@ io.on('connection', async (socket) => {
     const timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
     const messageId = Date.now().toString();
     const messageWithTimestamp = { id: messageId, msg: data.msg, timestamp, key: data.key, readBy: [] };
+    
     if (client && client.isReady) {
       try {
         await client.lPush('chatHistory', JSON.stringify(messageWithTimestamp));
         io.emit('chat message', messageWithTimestamp);
+        
+        // 在用户发送消息后,立即发送一个机器人的回复
+        await sendRandomSonnetLine();
       } catch (error) {
         console.error('Error saving message to Redis:', error);
       }
@@ -199,7 +213,7 @@ async function startServer() {
       console.log(`Server running on port ${PORT}`);
     });
     
-    setInterval(sendRandomSonnetLine, 5000);
+    // 删除了定时发送随机sonnet的代码
     setInterval(clearChatHistory, 60 * 1000);
     
     setInterval(() => {
