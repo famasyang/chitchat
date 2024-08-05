@@ -50,20 +50,25 @@ app.post('/upload', upload.single('image'), (req, res) => {
   }
 });
 
-app.get('/clear-chat-history', async (req, res) => {
+async function clearChatHistory() {
   if (client && client.isReady) {
     try {
       await client.del('chatHistory');
       console.log('Chat history cleared');
-      res.send('Chat history cleared');
+      io.emit('chat history cleared'); // 广播聊天记录已清除的事件
+      
+      // 发送下一次清除时间
+      const nextClearTime = Date.now() + 60 * 1000; // 1分钟后
+      io.emit('next clear time', nextClearTime);
     } catch (error) {
       console.error('Error clearing chat history:', error);
-      res.status(500).send('Error clearing chat history');
     }
-  } else {
-    console.error('Redis client is not ready');
-    res.status(500).send('Redis client is not ready');
   }
+}
+
+app.get('/clear-chat-history', async (req, res) => {
+  await clearChatHistory();
+  res.send('Chat history cleared');
 });
 
 io.on('connection', async (socket) => {
@@ -90,6 +95,10 @@ io.on('connection', async (socket) => {
   } else {
     console.error('Redis client is not ready');
   }
+
+  // 发送下一次清除时间
+  const nextClearTime = Date.now() + 60 * 1000; // 1分钟后
+  socket.emit('next clear time', nextClearTime);
 
   socket.on('user joined', (nickname) => {
     socket.nickname = nickname;
@@ -142,17 +151,8 @@ async function startServer() {
 
 startServer();
 
-// 每12小时删除一次聊天记录
-setInterval(async () => {
-  if (client && client.isReady) {
-    try {
-      await client.del('chatHistory');
-      console.log('Chat history cleared');
-    } catch (error) {
-      console.error('Error clearing chat history:', error);
-    }
-  }
-}, 12 * 60 * 60 * 1000); // 12小时的毫秒数
+// 每1分钟清除一次聊天记录
+setInterval(clearChatHistory, 60 * 1000);
 
 // 删除上传目录中的旧文件
 setInterval(() => {
@@ -171,7 +171,7 @@ setInterval(() => {
         }
         const now = Date.now();
         const fileAge = now - stats.mtimeMs;
-        if (fileAge > 12 * 60 * 60 * 1000) { // 文件超过12小时
+        if (fileAge > 60 * 1000) { // 文件超过1分钟
           fs.unlink(filePath, (err) => {
             if (err) {
               console.error('Error deleting file:', err);
@@ -183,4 +183,4 @@ setInterval(() => {
       });
     });
   });
-}, 12 * 60 * 60 * 1000); // 12小时的毫秒数
+}, 60 * 1000); // 1分钟的毫秒数
