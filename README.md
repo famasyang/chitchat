@@ -6,7 +6,7 @@ anonymous chatroom
 - 支持图片上传
 - 左侧显示在线用户ID以及IP地址
 - material 3 设计
-- 所有聊天记录默认12小时内清除
+- 所有聊天记录默认1分钟内清除
 ### 部署初始化步骤
 ```
 npm init -y
@@ -20,6 +20,8 @@ npm install express socket.io moment axios
 project-root/
 ├── public/
 │   ├── index.html
+│   ├── script.js
+│   ├── style.css
 │   └── socket.io.js (从socket.io下载的客户端脚本，可以直接从CDN加载)
 ├── server.js
 ├── package.json
