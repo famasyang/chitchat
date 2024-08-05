@@ -18,6 +18,8 @@ const countdown = document.getElementById('countdown');
 let nickname = '';
 let phraseKey = '';
 let nextClearTime;
+let lastReadMessageId = null;
+const sonnetKey = "sonnet_key";
 
 function encryptMessage(message, key) {
   return CryptoJS.AES.encrypt(message, key).toString();
@@ -131,7 +133,7 @@ socket.on('chat message', (msg) => {
 });
 
 socket.on('chat history', (history) => {
-  messages.innerHTML = ''; // 清空现有消息
+  messages.innerHTML = '';
   history.forEach(appendMessage);
   messages.scrollTop = messages.scrollHeight;
   showWelcomeMessage();
@@ -147,7 +149,7 @@ socket.on('update user list', (users) => {
 });
 
 socket.on('chat history cleared', () => {
-  messages.innerHTML = ''; // 清空消息列表
+  messages.innerHTML = '';
   const clearMessage = document.createElement('li');
   clearMessage.textContent = '聊天记录已被清除';
   clearMessage.style.textAlign = 'center';
@@ -164,11 +166,10 @@ socket.on('next clear time', (time) => {
 function updateCountdown() {
   const now = Date.now();
   const timeLeft = Math.max(0, nextClearTime - now);
-  const seconds = Math.ceil(timeLeft / 1000); // 向上取整，确保不会显示 0 秒
+  const seconds = Math.ceil(timeLeft / 1000);
   
   countdown.textContent = `本轮聊天记录将在 ${seconds} 秒后消失`;
   
-  // 当剩余时间少于10秒时，改变样式
   if (seconds <= 10) {
     countdown.style.color = 'red';
     countdown.style.fontWeight = 'bold';
@@ -188,9 +189,18 @@ function updateCountdown() {
 
 function appendMessage(msg) {
   const item = document.createElement('li');
-  const decryptedMessage = decryptMessage(msg.msg, phraseKey);
   const messageContent = document.createElement('div');
   messageContent.classList.add('message-content');
+  messageContent.dataset.messageId = msg.id;
+
+  let decryptedMessage;
+  if (msg.key === sonnetKey) {
+    messageContent.classList.add('sonnet-message');
+    socket.emit('decrypt sonnet', msg.msg);
+    decryptedMessage = '正在解密古神的低语...';
+  } else {
+    decryptedMessage = decryptMessage(msg.msg, phraseKey);
+  }
 
   const isOwnMessage = decryptedMessage.startsWith(`${nickname}:`);
   if (isOwnMessage) {
@@ -202,12 +212,11 @@ function appendMessage(msg) {
   const messageId = document.createElement('div');
   messageId.classList.add('message-id');
   const nameAndMessage = decryptedMessage.split(': ');
-  messageId.textContent = nameAndMessage[0]; // 提取昵称
+  messageId.textContent = nameAndMessage[0];
 
   const messageText = document.createElement('div');
-  const contentText = nameAndMessage.slice(1).join(': '); // 提取消息内容
+  const contentText = nameAndMessage.slice(1).join(': ');
 
-  // 检查是否包含图片
   const imgMatch = contentText.match(/\[img\](.*?)\[\/img\]/);
   if (imgMatch) {
     const imgUrl = imgMatch[1];
@@ -231,14 +240,47 @@ function appendMessage(msg) {
     second: '2-digit'
   });
 
+  const readStatus = document.createElement('div');
+  readStatus.classList.add('read-status');
+  readStatus.textContent = '未读';
+
   messageContent.appendChild(messageId);
   messageContent.appendChild(messageText);
   messageContent.appendChild(messageTime);
+  messageContent.appendChild(readStatus);
 
   item.appendChild(messageContent);
   messages.appendChild(item);
   messages.scrollTop = messages.scrollHeight;
+
+  if (!isOwnMessage && msg.id !== lastReadMessageId) {
+    lastReadMessageId = msg.id;
+    socket.emit('message read', msg.id);
+  }
 }
+
+socket.on('message read', (data) => {
+  const messages = document.querySelectorAll('.message-content');
+  messages.forEach(message => {
+    if (message.dataset.messageId === data.messageId) {
+      const readStatus = message.querySelector('.read-status');
+      if (readStatus) {
+        readStatus.textContent = `已读 by ${data.readBy}`;
+      }
+    }
+  });
+});
+
+socket.on('decrypted sonnet', (decryptedMsg) => {
+  const sonnetMessages = document.querySelectorAll('.sonnet-message');
+  const latestSonnetMessage = sonnetMessages[sonnetMessages.length - 1];
+  if (latestSonnetMessage) {
+    const messageText = latestSonnetMessage.querySelector('div:nth-child(2)');
+    if (messageText) {
+      messageText.textContent = decryptedMsg;
+    }
+  }
+});
 
 clearCookiesBtn.addEventListener('click', () => {
   localStorage.removeItem('nickname');
