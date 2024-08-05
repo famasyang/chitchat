@@ -112,7 +112,8 @@ async function sendRandomSonnetLine() {
     id: Date.now().toString(),
     msg: encryptMessage("黄少:" + randomLine, "sonnet_key"),
     timestamp: moment().format('YYYY-MM-DD HH:mm:ss'),
-    key: "sonnet_key"
+    key: "sonnet_key",
+    readBy: []
   };
   
   if (client && client.isReady) {
@@ -194,8 +195,28 @@ io.on('connection', async (socket) => {
     }
   });
 
-  socket.on('message read', (messageId) => {
-    io.emit('message read', { messageId, readBy: socket.nickname });
+  socket.on('message read', async (messageId) => {
+    if (client && client.isReady) {
+      try {
+        const chatHistory = await client.lRange('chatHistory', 0, -1);
+        const updatedHistory = chatHistory.map(item => {
+          const message = JSON.parse(item);
+          if (message.id === messageId && !message.readBy.includes(socket.nickname)) {
+            message.readBy.push(socket.nickname);
+          }
+          return JSON.stringify(message);
+        });
+
+        await client.del('chatHistory');
+        await client.lPush('chatHistory', updatedHistory);
+
+        io.emit('message read', { messageId, readBy: socket.nickname });
+      } catch (error) {
+        console.error('Error updating read status:', error);
+      }
+    } else {
+      console.error('Redis client is not ready');
+    }
   });
 
   socket.on('decrypt sonnet', (encryptedMsg) => {
@@ -213,7 +234,6 @@ async function startServer() {
       console.log(`Server running on port ${PORT}`);
     });
     
-    // 删除了定时发送随机sonnet的代码
     setInterval(clearChatHistory, 60 * 1000);
     
     setInterval(() => {

@@ -242,7 +242,7 @@ function appendMessage(msg) {
 
   const readStatus = document.createElement('div');
   readStatus.classList.add('read-status');
-  readStatus.textContent = '未读';
+  updateReadStatus(readStatus, msg.readBy || []);
 
   messageContent.appendChild(messageId);
   messageContent.appendChild(messageText);
@@ -253,9 +253,18 @@ function appendMessage(msg) {
   messages.appendChild(item);
   messages.scrollTop = messages.scrollHeight;
 
-  if (!isOwnMessage && msg.id !== lastReadMessageId) {
-    lastReadMessageId = msg.id;
+  if (!isOwnMessage && !msg.readBy.includes(nickname)) {
     socket.emit('message read', msg.id);
+  }
+}
+
+function updateReadStatus(element, readBy) {
+  if (readBy.length === 0) {
+    element.textContent = '未读';
+  } else if (readBy.length === 1) {
+    element.textContent = `已读 by ${readBy[0]}`;
+  } else {
+    element.textContent = `已读 by ${readBy.length} 人`;
   }
 }
 
@@ -265,7 +274,13 @@ socket.on('message read', (data) => {
     if (message.dataset.messageId === data.messageId) {
       const readStatus = message.querySelector('.read-status');
       if (readStatus) {
-        readStatus.textContent = `已读 by ${data.readBy}`;
+        const currentReadBy = readStatus.textContent.startsWith('已读') 
+          ? readStatus.textContent.split('by ')[1].split(', ')
+          : [];
+        if (!currentReadBy.includes(data.readBy)) {
+          currentReadBy.push(data.readBy);
+        }
+        updateReadStatus(readStatus, currentReadBy);
       }
     }
   });
