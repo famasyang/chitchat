@@ -7,6 +7,7 @@ const redis = require('redis');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const CryptoJS = require('crypto-js');
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -16,11 +17,26 @@ const upload = multer({ dest: 'uploads/' });
 let client;
 let onlineUsers = {};
 
+const sonnets = [
+  "真？",
+  "瓦 真的弱智游戏。",
+  "昨天下午三点钟起的",
+  "为了杜绝饰品被贩卖以及盗号等一切风险，本人电脑一概不出借。",
+  "那要三百年后了。",
+  "三百年后就没的活路了。",
+  "到时候我找你要坐三个小时飞船去月亮找你了",
+  "或者可能直接住在环太空卫星带上",
+  "那时候我就找不了你了。",
+  "过去就要被当成贱民被安保公司突突了。",
+  "最后在火星上躺在躺椅上看着太阳风暴把聚居地的生态膜撕烂 我就坐在躺椅上被烧成飞灰。",
+  "你站在飞船顶层看着太阳风暴肆虐过了火星表面 静静的喝了一口冥王星产的红酒 眼神中只有冷漠 回头对助理说 这次招标 我要拿下火星一半的土地。",
+  "和和又平平？",
+  "？跑了"
+];
+
 async function connectRedis() {
   client = redis.createClient({
     url: 'redis://127.0.0.1:6379'
-    // 如果有密码认证，请取消下面这行的注释并填入密码
-    // password: 'your_redis_password'
   });
 
   client.on('error', (err) => console.error('Redis Client Error', err));
@@ -55,10 +71,9 @@ async function clearChatHistory() {
     try {
       await client.del('chatHistory');
       console.log('Chat history cleared');
-      io.emit('chat history cleared'); // 广播聊天记录已清除的事件
+      io.emit('chat history cleared');
       
-      // 发送下一次清除时间
-      const nextClearTime = Date.now() + 60 * 1000; // 1分钟后
+      const nextClearTime = Date.now() + 60 * 1000;
       io.emit('next clear time', nextClearTime);
     } catch (error) {
       console.error('Error clearing chat history:', error);
@@ -70,6 +85,31 @@ app.get('/clear-chat-history', async (req, res) => {
   await clearChatHistory();
   res.send('Chat history cleared');
 });
+
+function encryptMessage(message, key) {
+  return CryptoJS.AES.encrypt(message, key).toString();
+}
+
+function decryptMessage(encryptedMsg, key) {
+  try {
+    const bytes = CryptoJS.AES.decrypt(encryptedMsg, key);
+    return bytes.toString(CryptoJS.enc.Utf8);
+  } catch (error) {
+    console.error('Error decrypting message:', error);
+    return '解密错误：无效的密钥';
+  }
+}
+
+function sendRandomSonnetLine() {
+  const randomLine = sonnets[Math.floor(Math.random() * sonnets.length)];
+  const message = {
+    id: Date.now().toString(),
+    msg: encryptMessage("黄少:" + randomLine, "sonnet_key"),
+    timestamp: moment().format('YYYY-MM-DD HH:mm:ss'),
+    key: "sonnet_key"
+  };
+  io.emit('chat message', message);
+}
 
 io.on('connection', async (socket) => {
   console.log('A user connected');
@@ -86,8 +126,8 @@ io.on('connection', async (socket) => {
 
   if (client && client.isReady) {
     try {
-      const chatHistory = await client.lRange('chatHistory', 0, -1); // 获取所有记录
-      chatHistory.reverse(); // 反转记录顺序，以便最新的记录在最前面
+      const chatHistory = await client.lRange('chatHistory', 0, -1);
+      chatHistory.reverse();
       socket.emit('chat history', chatHistory.map(JSON.parse));
     } catch (error) {
       console.error('Error fetching chat history:', error);
@@ -96,8 +136,7 @@ io.on('connection', async (socket) => {
     console.error('Redis client is not ready');
   }
 
-  // 发送下一次清除时间
-  const nextClearTime = Date.now() + 60 * 1000; // 1分钟后
+  const nextClearTime = Date.now() + 60 * 1000;
   socket.emit('next clear time', nextClearTime);
 
   socket.on('user joined', (nickname) => {
@@ -121,7 +160,8 @@ io.on('connection', async (socket) => {
 
   socket.on('chat message', async (data) => {
     const timestamp = moment().format('YYYY-MM-DD HH:mm:ss');
-    const messageWithTimestamp = { msg: data.msg, timestamp, key: data.key };
+    const messageId = Date.now().toString();
+    const messageWithTimestamp = { id: messageId, msg: data.msg, timestamp, key: data.key, readBy: [] };
     if (client && client.isReady) {
       try {
         await client.lPush('chatHistory', JSON.stringify(messageWithTimestamp));
@@ -133,6 +173,15 @@ io.on('connection', async (socket) => {
       console.error('Redis client is not ready');
     }
   });
+
+  socket.on('message read', (messageId) => {
+    io.emit('message read', { messageId, readBy: socket.nickname });
+  });
+
+  socket.on('decrypt sonnet', (encryptedMsg) => {
+    const decryptedMsg = decryptMessage(encryptedMsg, "sonnet_key");
+    socket.emit('decrypted sonnet', decryptedMsg);
+  });
 });
 
 const PORT = process.env.PORT || 3000;
@@ -143,6 +192,39 @@ async function startServer() {
     httpServer.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
+    
+    setInterval(sendRandomSonnetLine, 5000);
+    setInterval(clearChatHistory, 60 * 1000);
+    
+    setInterval(() => {
+      const uploadDir = path.join(__dirname, 'uploads');
+      fs.readdir(uploadDir, (err, files) => {
+        if (err) {
+          console.error('Error reading uploads directory:', err);
+          return;
+        }
+        files.forEach(file => {
+          const filePath = path.join(uploadDir, file);
+          fs.stat(filePath, (err, stats) => {
+            if (err) {
+              console.error('Error getting file stats:', err);
+              return;
+            }
+            const now = Date.now();
+            const fileAge = now - stats.mtimeMs;
+            if (fileAge > 60 * 1000) {
+              fs.unlink(filePath, (err) => {
+                if (err) {
+                  console.error('Error deleting file:', err);
+                } else {
+                  console.log(`Deleted file: ${file}`);
+                }
+              });
+            }
+          });
+        });
+      });
+    }, 60 * 1000);
   } else {
     console.error('Failed to start server due to Redis connection issue');
     process.exit(1);
@@ -150,37 +232,3 @@ async function startServer() {
 }
 
 startServer();
-
-// 每1分钟清除一次聊天记录
-setInterval(clearChatHistory, 60 * 1000);
-
-// 删除上传目录中的旧文件
-setInterval(() => {
-  const uploadDir = path.join(__dirname, 'uploads');
-  fs.readdir(uploadDir, (err, files) => {
-    if (err) {
-      console.error('Error reading uploads directory:', err);
-      return;
-    }
-    files.forEach(file => {
-      const filePath = path.join(uploadDir, file);
-      fs.stat(filePath, (err, stats) => {
-        if (err) {
-          console.error('Error getting file stats:', err);
-          return;
-        }
-        const now = Date.now();
-        const fileAge = now - stats.mtimeMs;
-        if (fileAge > 60 * 1000) { // 文件超过1分钟
-          fs.unlink(filePath, (err) => {
-            if (err) {
-              console.error('Error deleting file:', err);
-            } else {
-              console.log(`Deleted file: ${file}`);
-            }
-          });
-        }
-      });
-    });
-  });
-}, 60 * 1000); // 1分钟的毫秒数
