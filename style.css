@@ -288,6 +288,21 @@ body {
   margin-bottom: 10px;
 }
 
+.read-status {
+  font-size: 0.8em;
+  color: #888;
+  text-align: right;
+  margin-top: 5px;
+}
+
+.sonnet-message {
+  font-style: italic;
+  color: #6a5acd;
+  background-color: #f0f8ff;
+  border-left: 3px solid #6a5acd;
+  padding-left: 10px;
+}
+
 @media (max-width: 600px) {
   .user-list {
     display: none;
