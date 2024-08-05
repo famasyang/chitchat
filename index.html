@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>chitchat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.2/socket.io.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-    <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
     <div id="nicknameForm" class="container">
@@ -14,12 +15,12 @@
             <h1>chitchat</h1>
         </div>
         <div class="card">
-            <h2>:=|</h2>
+            <h2>:-|</h2>
             <div class="input-field">
-                <input type="text" id="nicknameInput" placeholder="请输入昵称">
+                <input type="text" id="nicknameInput" placeholder="请输入昵称" required>
             </div>
             <div class="input-field">
-                <input type="password" id="phraseKeyInput" placeholder="请输入密钥">
+                <input type="password" id="phraseKeyInput" placeholder="请输入密钥" required>
             </div>
             <button id="enterChat" class="btn">进入聊天室</button>
         </div>
@@ -34,21 +35,21 @@
             <div id="countdown" class="countdown"></div>
             <ul id="messages"></ul>
             <form id="form" action="">
-                <input id="input" autocomplete="off" />
-                <button type="button" id="addImageBtn" class="icon-btn" title="选择图片">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                        <circle cx="8.5" cy="8.5" r="1.5"/>
-                        <polyline points="21 15 16 10 5 21"/>
-                    </svg>
-                </button>
-                <input type="file" id="imageUpload" accept="image/*" />
-                <button type="submit" id="sendBtn" class="icon-btn" title="发送消息">
+                <input id="input" autocomplete="off" placeholder="输入消息..." />
+                <button type="submit" class="icon-btn">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="22" y1="2" x2="11" y2="13"></line>
                         <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                     </svg>
                 </button>
+                <button type="button" id="addImageBtn" class="icon-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                </button>
+                <input type="file" id="imageUpload" accept="image/*" style="display: none;">
             </form>
         </div>
     </div>
@@ -56,7 +57,7 @@
     <div id="locationInfo" style="display: none;"></div>
 
     <div class="menu-container">
-        <button class="menu-btn" onclick="toggleMenu()">菜单</button>
+        <button onclick="toggleMenu()" class="menu-btn">菜单</button>
         <div id="menuContent" class="menu-content">
             <a href="#" id="changeKeyBtn">更换密钥</a>
             <a href="#" id="clearCookiesBtn">返回主页</a>
